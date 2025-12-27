@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Tonda – Silový trénink</title>
+  <meta name="theme-color" content="#111111" />
+  <style>
+    :root { --pad: 14px; --r: 14px; --b: #1f1f1f; --g:#2c2c2c; --t:#f2f2f2; --m:#bdbdbd; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial; background:#0f0f10; color:var(--t); }
+    header { position: sticky; top:0; background:rgba(15,15,16,.92); backdrop-filter: blur(10px); border-bottom:1px solid #222; padding:12px var(--pad); z-index:10;}
+    h1 { font-size: 16px; margin:0 0 8px 0; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    select, button, input, textarea {
+      background: var(--b); color: var(--t); border:1px solid #333; border-radius: 12px;
+      padding: 10px 12px; font-size: 14px;
+    }
+    button { cursor:pointer; }
+    button.primary { background:#2a5bd7; border-color:#2a5bd7; }
+    button.danger { background:#7a1b1b; border-color:#7a1b1b; }
+    button.ghost { background:transparent; border-color:#333; }
+    main { padding: var(--pad); max-width: 980px; margin:0 auto; }
+    .card { background: var(--b); border:1px solid #222; border-radius: var(--r); padding: 12px; margin: 10px 0; }
+    .muted { color: var(--m); font-size: 12px; }
+    .title { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+    .title h2 { margin:0; font-size: 15px; }
+    .setgrid { display:grid; grid-template-columns: 46px 1fr 1fr 1fr 58px; gap:8px; align-items:center; margin-top:10px;}
+    .setgrid .head { color: var(--m); font-size: 12px; }
+    .setgrid input { width: 100%; }
+    .chk { display:flex; justify-content:center; }
+    .pill { display:inline-flex; gap:8px; align-items:center; padding:8px 10px; border-radius: 999px; background: #161616; border:1px solid #2a2a2a; }
+    .footer { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    textarea { width:100%; min-height:90px; resize: vertical; }
+    .timer { font-variant-numeric: tabular-nums; }
+    .split { display:flex; gap:10px; flex-wrap:wrap; }
+    .split > * { flex: 1 1 240px; }
+    .list { max-height: 240px; overflow:auto; }
+    .histitem { padding:10px; border-radius: 12px; border:1px solid #2a2a2a; margin:8px 0; background:#141414; }
+    .histitem strong { display:block; }
+    .small { font-size: 12px; color: var(--m); }
+    .ok { color: #7CFF7C; }
+    .warn { color: #ffd27c; }
+    a { color:#7cb4ff; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🏋️‍♂️ Tonda – Silový trénink (A/B/C)</h1>
+  <div class="row">
+    <label class="pill">
+      <span>Trénink</span>
+      <select id="planSelect">
+        <option value="A">A – Tlak + kvadricepsy</option>
+        <option value="B">B – Tah + zadní řetězec</option>
+        <option value="C">C – Komplex + doplňky</option>
+      </select>
+    </label>
+
+    <button class="primary" id="btnNew">Nový trénink</button>
+    <button id="btnSave">Uložit</button>
+    <button class="ghost" id="btnMarkAll">Označit vše hotovo</button>
+
+    <span class="pill">
+      <span>Rest</span>
+      <span class="timer" id="timerTxt">--:--</span>
+      <button id="t90">90s</button>
+      <button id="t150">150s</button>
+      <button id="t240">240s</button>
+      <button class="ghost" id="tStop">Stop</button>
+    </span>
+  </div>
+
+  <div class="row" style="margin-top:10px;">
+    <span class="pill"><span>Session:</span> <span id="sessionId" class="muted">—</span></span>
+    <span class="pill"><span>Hotovo:</span> <span id="progressTxt" class="muted">—</span></span>
+  </div>
+</header>
+
+<main>
+  <div class="split">
+    <div class="card">
+      <div class="title">
+        <h2>Trénink</h2>
+        <div class="muted">kg / reps / RPE + checkbox</div>
+      </div>
+      <div id="workoutRoot" class="muted" style="margin-top:10px;">
+        Klikni na <b>Nový trénink</b>.
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="title"><h2>Poznámky</h2></div>
+        <textarea id="notes" placeholder="Např. bolí loket, technika, spánek, cíl příště…"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title">
+        <h2>Historie</h2>
+        <div class="muted">uloženo na iPadu (localStorage)</div>
+      </div>
+      <div class="footer">
+        <button id="btnExport">Export JSON</button>
+        <button id="btnImport">Import JSON</button>
+        <button class="danger" id="btnClearAll">Smazat vše</button>
+      </div>
+      <div class="muted" style="margin:10px 0;">
+        Tip: Export si občas ulož do Files (Souborů) jako zálohu.
+      </div>
+      <div id="historyList" class="list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="title"><h2>Jak z toho udělat „apku“ na iPadu</h2></div>
+    <div class="muted" style="line-height:1.5;">
+      1) Ulož tenhle soubor do <b>Souborů</b> (Files) třeba do iCloud Drive.<br/>
+      2) Otevři ho v <b>Safari</b>.<br/>
+      3) Sdílení → <b>Přidat na plochu</b>. Pak to spouštíš z ikonky a funguje to offline.
+    </div>
+  </div>
+</main>
+
+<script>
+  // ----- PLAN -----
+  const PLAN = {
+    A: {
+      name: "Tlak + kvadricepsy",
+      exercises: [
+        { name: "Dřep s velkou osou", sets: 5 },
+        { name: "Bench press (velká osa)", sets: 5 },
+        { name: "OHP (tlaky nad hlavu)", sets: 4 },
+        { name: "Předkopávání", sets: 3 },
+        { name: "Triceps – kladka dolů", sets: 3 },
+        { name: "Core – plank", sets: 3 },
+      ],
+    },
+    B: {
+      name: "Tah + zadní řetězec",
+      exercises: [
+        { name: "Mrtvý tah", sets: 5 },
+        { name: "Přítahy osy v předklonu", sets: 4 },
+        { name: "Shyby / horní kladka", sets: 4 },
+        { name: "Zakopávání", sets: 3 },
+        { name: "Biceps – EZ/kladka", sets: 3 },
+        { name: "Core – zvedání kolen/nohou", sets: 3 },
+      ],
+    },
+    C: {
+      name: "Komplex + doplňky",
+      exercises: [
+        { name: "Dřep (lehčí)", sets: 4 },
+        { name: "Bench – úzký úchop", sets: 4 },
+        { name: "Face pull (horní kladka)", sets: 3 },
+        { name: "Výpady s osou / bulharské dřepy", sets: 3 },
+        { name: "Lýtka – výpony", sets: 4 },
+        { name: "Core – woodchopper", sets: 3 },
+      ],
+    },
+  };
+
+  // ----- STORAGE -----
+  const KEY = "tonda_gym_app_v1";
+  const loadStore = () => {
+    try { return JSON.parse(localStorage.getItem(KEY)) || { sessions: [] }; }
+    catch { return { sessions: [] }; }
+  };
+  const saveStore = (db) => localStorage.setItem(KEY, JSON.stringify(db));
+
+  let db = loadStore();
+  let session = null;
+
+  // ----- HELPERS -----
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const nowId = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  function computeProgress(sess) {
+    if (!sess) return { done:0, total:0, completed:false };
+    let total = 0, done = 0;
+    sess.exercises.forEach(ex => {
+      ex.sets.forEach(st => {
+        total++;
+        if (st.done) done++;
+      });
+    });
+    return { done, total, completed: total>0 && done===total };
+  }
+
+  function setProgressUI() {
+    const p = computeProgress(session);
+    $("progressTxt").textContent = session ? `${p.done}/${p.total} ${p.completed ? "✅" : ""}` : "—";
+  }
+
+  // ----- RENDER WORKOUT -----
+  function newSession() {
+    const plan = $("planSelect").value;
+    const tpl = PLAN[plan];
+    session = {
+      id: nowId(),
+      plan,
+      planName: tpl.name,
+      createdAt: new Date().toISOString(),
+      notes: "",
+      exercises: tpl.exercises.map(ex => ({
+        name: ex.name,
+        sets: Array.from({length: ex.sets}, () => ({ kg:"", reps:"", rpe:"", done:false }))
+      }))
+    };
+    $("sessionId").textContent = session.id;
+    $("notes").value = "";
+    renderSession();
+    setProgressUI();
+  }
+
+  function renderSession() {
+    const root = $("workoutRoot");
+    root.innerHTML = "";
+    if (!session) {
+      root.textContent = "Klikni na „Nový trénink“.";
+      return;
+    }
+
+    session.exercises.forEach((ex, exIdx) => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const top = document.createElement("div");
+      top.className = "title";
+      top.innerHTML = `<h2>${exIdx+1}. ${ex.name}</h2><div class="muted">série: ${ex.sets.length}</div>`;
+      card.appendChild(top);
+
+      const grid = document.createElement("div");
+      grid.className = "setgrid";
+      grid.innerHTML = `
+        <div class="head">Série</div>
+        <div class="head">kg</div>
+        <div class="head">reps</div>
+        <div class="head">RPE</div>
+        <div class="head" style="text-align:center;">✓</div>
+      `;
+      card.appendChild(grid);
+
+      ex.sets.forEach((st, sIdx) => {
+        const mk = (tag, props={}) => {
+          const el = document.createElement(tag);
+          Object.entries(props).forEach(([k,v]) => el[k] = v);
+          return el;
+        };
+
+        const lab = mk("div"); lab.textContent = `${sIdx+1}.`;
+        const kg = mk("input", { value: st.kg, inputMode:"decimal", placeholder:"kg" });
+        const reps = mk("input", { value: st.reps, inputMode:"numeric", placeholder:"reps" });
+        const rpe = mk("input", { value: st.rpe, inputMode:"decimal", placeholder:"RPE" });
+        const chkWrap = mk("div"); chkWrap.className = "chk";
+        const chk = mk("input"); chk.type="checkbox"; chk.checked = !!st.done;
+        chkWrap.appendChild(chk);
+
+        kg.addEventListener("input", () => { st.kg = kg.value; });
+        reps.addEventListener("input", () => { st.reps = reps.value; });
+        rpe.addEventListener("input", () => { st.rpe = rpe.value; });
+        chk.addEventListener("change", () => { st.done = chk.checked; setProgressUI(); });
+
+        grid.appendChild(lab);
+        grid.appendChild(kg);
+        grid.appendChild(reps);
+        grid.appendChild(rpe);
+        grid.appendChild(chkWrap);
+      });
+
+      root.appendChild(card);
+    });
+  }
+
+  // ----- SAVE / HISTORY -----
+  function saveSession() {
+    if (!session) return alert("Nejdřív dej Nový trénink.");
+    session.notes = $("notes").value.trim();
+    const p = computeProgress(session);
+    session.completed = p.completed;
+    session.updatedAt = new Date().toISOString();
+
+    const idx = db.sessions.findIndex(s => s.id === session.id);
+    if (idx >= 0) db.sessions[idx] = session;
+    else db.sessions.push(session);
+
+    // newest last; keep as-is
+    saveStore(db);
+    renderHistory();
+    setProgressUI();
+    alert(`Uloženo ✅\nDokončeno: ${session.completed ? "ANO" : "NE"}`);
+  }
+
+  function renderHistory() {
+    const list = $("historyList");
+    list.innerHTML = "";
+    const items = [...db.sessions].slice(-60).reverse(); // last 60
+    if (items.length === 0) {
+      list.innerHTML = `<div class="muted">Zatím nic uloženého.</div>`;
+      return;
+    }
+
+    items.forEach(s => {
+      const div = document.createElement("div");
+      div.className = "histitem";
+      const ok = s.completed ? "✅" : "…";
+      div.innerHTML = `
+        <strong>${ok} ${s.id} — ${s.plan} (${s.planName})</strong>
+        <div class="small">${new Date(s.updatedAt || s.createdAt).toLocaleString()}</div>
+        <div class="footer">
+          <button class="ghost" data-act="load">Načíst</button>
+          <button class="ghost" data-act="dup">Duplikovat</button>
+          <button class="danger" data-act="del">Smazat</button>
+        </div>
+      `;
+      div.querySelector('[data-act="load"]').onclick = () => { session = JSON.parse(JSON.stringify(s)); $("sessionId").textContent = session.id; $("notes").value = session.notes || ""; renderSession(); setProgressUI(); window.scrollTo(0,0); };
+      div.querySelector('[data-act="dup"]').onclick = () => {
+        const copy = JSON.parse(JSON.stringify(s));
+        copy.id = nowId();
+        copy.createdAt = new Date().toISOString();
+        copy.updatedAt = copy.createdAt;
+        copy.completed = false;
+        // reset checkboxes when duplicating
+        copy.exercises.forEach(ex => ex.sets.forEach(st => st.done = false));
+        db.sessions.push(copy); saveStore(db); renderHistory();
+        alert("Duplikováno (nová session) ✅");
+      };
+      div.querySelector('[data-act="del"]').onclick = () => {
+        if (!confirm(`Smazat session ${s.id}?`)) return;
+        db.sessions = db.sessions.filter(x => x.id !== s.id);
+        saveStore(db); renderHistory();
+      };
+      list.appendChild(div);
+    });
+  }
+
+  // ----- EXPORT / IMPORT -----
+  function downloadText(filename, text) {
+    const blob = new Blob([text], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportJSON() {
+    const ts = new Date();
+    const fn = `tonda-gym-export-${ts.getFullYear()}-${pad2(ts.getMonth()+1)}-${pad2(ts.getDate())}.json`;
+    downloadText(fn, JSON.stringify(db, null, 2));
+  }
+
+  function importJSON() {
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "application/json";
+    inp.onchange = async () => {
+      const file = inp.files[0];
+      if (!file) return;
+      const text = await file.text();
+      let imported;
+      try { imported = JSON.parse(text); } catch { return alert("Neplatný JSON."); }
+      if (!imported || !Array.isArray(imported.sessions)) return alert("JSON nemá sessions[].");
+
+      // merge by id
+      const map = new Map(db.sessions.map(s => [s.id, s]));
+      imported.sessions.forEach(s => { if (s?.id) map.set(s.id, s); });
+      db.sessions = Array.from(map.values()).sort((a,b) => (a.createdAt||"").localeCompare(b.createdAt||""));
+      saveStore(db);
+      renderHistory();
+      alert("Import hotový ✅");
+    };
+    inp.click();
+  }
+
+  // ----- TIMER -----
+  let timerInterval = null;
+  let remaining = 0;
+
+  function renderTimer() {
+    if (remaining <= 0) { $("timerTxt").textContent = "DONE ✅"; return; }
+    const m = Math.floor(remaining/60), s = remaining % 60;
+    $("timerTxt").textContent = `${pad2(m)}:${pad2(s)}`;
+  }
+
+  function startTimer(sec) {
+    stopTimer();
+    remaining = sec;
+    renderTimer();
+    timerInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        stopTimer();
+        $("timerTxt").textContent = "DONE ✅";
+        // jemné "buzz" na podporovaných zařízeních
+        if (navigator.vibrate) navigator.vibrate([80,40,80]);
+        return;
+      }
+      renderTimer();
+    }, 1000);
+  }
+  function stopTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+    remaining = 0;
+    $("timerTxt").textContent = "--:--";
+  }
+
+  // ----- ACTIONS -----
+  $("btnNew").onclick = newSession;
+  $("btnSave").onclick = saveSession;
+  $("btnMarkAll").onclick = () => {
+    if (!session) return;
+    session.exercises.forEach(ex => ex.sets.forEach(st => st.done = true));
+    renderSession();
+    setProgressUI();
+  };
+
+  $("t90").onclick = () => startTimer(90);
+  $("t150").onclick = () => startTimer(150);
+  $("t240").onclick = () => startTimer(240);
+  $("tStop").onclick = stopTimer;
+
+  $("btnExport").onclick = exportJSON;
+  $("btnImport").onclick = importJSON;
+  $("btnClearAll").onclick = () => {
+    if (!confirm("Opravdu smazat úplně všechno uložené?")) return;
+    db = { sessions: [] };
+    saveStore(db);
+    renderHistory();
+    alert("Smazáno.");
+  };
+
+  // init
+  renderHistory();
+  setProgressUI();
+</script>
+</body>
+</html>
